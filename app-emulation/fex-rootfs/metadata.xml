@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    Prebuilt x86 and x86-64 Gentoo system images used as a FEX RootFS. FEX
+    needs an x86 userland to run guest binaries against, and building the
+    guest thunk libraries needs one to compile against. These are the images
+    maintained upstream for FEX on Gentoo.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">WhatAmISupposedToPutHere/fex-rootfs</remote-id>
+  </upstream>
+</pkgmetadata>

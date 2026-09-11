@@ -1,0 +1,40 @@
+--- linux-nvidia-6.17-6.17.0.orig/drivers/usb/host/xhci-hub.c
++++ linux-nvidia-6.17-6.17.0/drivers/usb/host/xhci-hub.c
+@@ -1290,6 +1290,17 @@
+ 			}
+ 			port_li = readl(port->addr + PORTLI);
+ 			status = xhci_get_ext_port_status(temp, port_li);
++
++			/*
++			 * In MT8901 USB host controller, the lane count can be wrongly set
++			 * to 2 instead of 1 for USB Gen2x1 devices due to a HW Bug. As a SW
++			 * WAR, check if port speed is 0x5 (SuperSpeedPlus Gen2x1) in
++			 * PORTSC register and update the lane count as 1.
++			 */
++			if ((xhci->quirks & XHCI_NVIDIA_MT8901_HOST) &&
++			    DEV_SUPERSPEEDPLUS(temp))
++				status &= ~0xff00;
++
+ 			put_unaligned_le32(status, &buf[4]);
+ 		}
+ 		break;
+--- linux-nvidia-6.17-6.17.0.orig/drivers/usb/host/xhci-plat.c
++++ linux-nvidia-6.17-6.17.0/drivers/usb/host/xhci-plat.c
+@@ -171,6 +171,7 @@
+ 		return ret;
+ 
+ 	pm_runtime_set_active(&pdev->dev);
++	pm_runtime_use_autosuspend(&pdev->dev);
+ 	pm_runtime_enable(&pdev->dev);
+ 	pm_runtime_get_noresume(&pdev->dev);
+ 
+@@ -265,6 +266,9 @@
+ 		if (device_property_read_bool(tmpdev, "xhci-skip-phy-init-quirk"))
+ 			xhci->quirks |= XHCI_SKIP_PHY_INIT;
+ 
++		if (device_property_read_bool(tmpdev, "xhci-nvidia-mediatek-host"))
++			xhci->quirks |= XHCI_NVIDIA_MT8901_HOST;
++
+ 		device_property_read_u32(tmpdev, "imod-interval-ns",
+ 					 &xhci->imod_interval);
+ 		device_property_read_u16(tmpdev, "num-hc-interrupters",

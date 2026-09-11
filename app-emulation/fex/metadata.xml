@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    FEX is a usermode emulator that runs x86 and x86-64 Linux binaries on
+    arm64 hosts. On a DGX Spark (GB10) it is what makes the Steam client and
+    Proton usable: the guest's x86 code is translated, while the thunk
+    libraries forward OpenGL and Vulkan calls straight to the native arm64
+    NVIDIA driver, so the GPU still runs at full speed.
+  </longdescription>
+  <use>
+    <flag name="fexconfig">Build the FEXConfig configuration GUI</flag>
+    <flag name="qt6">Build FEXConfig against Qt 6</flag>
+    <flag name="telemetry">
+      Enable FEX's offline telemetry, which records emulation statistics
+      locally under ~/.fex-emu. Nothing is sent anywhere.
+    </flag>
+    <flag name="thunks">
+      Build the host and guest thunk libraries, which forward guest x86
+      OpenGL, Vulkan, X11, Wayland and ALSA calls to the native arm64
+      host libraries. Required for usable GPU performance.
+    </flag>
+  </use>
+  <upstream>
+    <remote-id type="github">FEX-Emu/FEX</remote-id>
+  </upstream>
+</pkgmetadata>

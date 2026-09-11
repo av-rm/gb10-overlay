@@ -1,0 +1,389 @@
+--- linux-nvidia-6.17-6.17.0.orig/drivers/soc/tegra/fuse/fuse-tegra.c
++++ linux-nvidia-6.17-6.17.0/drivers/soc/tegra/fuse/fuse-tegra.c
+@@ -182,8 +182,6 @@
+ 		}
+ 
+ 		fuse->soc->init(fuse);
+-		tegra_fuse_print_sku_info(&tegra_sku_info);
+-		tegra_soc_device_register();
+ 
+ 		err = tegra_fuse_add_lookups(fuse);
+ 		if (err)
+--- linux-nvidia-6.17-6.17.0.orig/drivers/soc/tegra/fuse/fuse-tegra30.c
++++ linux-nvidia-6.17-6.17.0/drivers/soc/tegra/fuse/fuse-tegra30.c
+@@ -117,6 +117,124 @@
+ #endif
+ 
+ #ifdef CONFIG_ARCH_TEGRA_114_SOC
++static const struct nvmem_cell_info tegra114_fuse_cells[] = {
++	{
++		.name = "tsensor-cpu1",
++		.offset = 0x084,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-cpu2",
++		.offset = 0x088,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-common",
++		.offset = 0x08c,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-cpu0",
++		.offset = 0x098,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "xusb-pad-calibration",
++		.offset = 0x0f0,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-cpu3",
++		.offset = 0x12c,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-gpu",
++		.offset = 0x154,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-mem0",
++		.offset = 0x158,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-mem1",
++		.offset = 0x15c,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	}, {
++		.name = "tsensor-pllx",
++		.offset = 0x160,
++		.bytes = 4,
++		.bit_offset = 0,
++		.nbits = 32,
++	},
++};
++
++static const struct nvmem_cell_lookup tegra114_fuse_lookups[] = {
++	{
++		.nvmem_name = "fuse",
++		.cell_name = "xusb-pad-calibration",
++		.dev_id = "7009f000.padctl",
++		.con_id = "calibration",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-common",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "common",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-cpu0",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "cpu0",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-cpu1",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "cpu1",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-cpu2",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "cpu2",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-cpu3",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "cpu3",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-mem0",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "mem0",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-mem1",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "mem1",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-gpu",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "gpu",
++	}, {
++		.nvmem_name = "fuse",
++		.cell_name = "tsensor-pllx",
++		.dev_id = "700e2000.thermal-sensor",
++		.con_id = "pllx",
++	},
++};
++
+ static const struct tegra_fuse_info tegra114_fuse_info = {
+ 	.read = tegra30_fuse_read,
+ 	.size = 0x2a0,
+@@ -127,6 +245,10 @@
+ 	.init = tegra30_fuse_init,
+ 	.speedo_init = tegra114_init_speedo_data,
+ 	.info = &tegra114_fuse_info,
++	.lookups = tegra114_fuse_lookups,
++	.num_lookups = ARRAY_SIZE(tegra114_fuse_lookups),
++	.cells = tegra114_fuse_cells,
++	.num_cells = ARRAY_SIZE(tegra114_fuse_cells),
+ 	.soc_attr_group = &tegra_soc_attr_group,
+ 	.clk_suspend_on = false,
+ };
+--- linux-nvidia-6.17-6.17.0.orig/drivers/soc/tegra/fuse/tegra-apbmisc.c
++++ linux-nvidia-6.17-6.17.0/drivers/soc/tegra/fuse/tegra-apbmisc.c
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <linux/acpi.h>
++#include <linux/arm-smccc.h>
+ #include <linux/export.h>
+ #include <linux/io.h>
+ #include <linux/kernel.h>
+@@ -27,6 +28,11 @@
+ #define PMC_STRAPPING_OPT_A_RAM_CODE_MASK_SHORT	\
+ 	(0x3 << PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT)
+ 
++#define TEGRA_SMCCC_PLATFORM(x)		((x >> 8) & 0xff)
++#define TEGRA_SMCCC_CHIP_ID(x)		((x >> 4) & 0xff)
++#define TEGRA_SMCCC_MAJOR_REV(x)	(x & 0xf)
++#define TEGRA_SMCCC_MINOR_REV(x)	(x & 0xf)
++
+ static void __iomem *apbmisc_base;
+ static bool long_ram_code;
+ static u32 strapping;
+@@ -41,21 +47,46 @@
+ 
+ u8 tegra_get_chip_id(void)
+ {
++#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
++	s32 soc_id = arm_smccc_get_soc_id_version();
++
++	if (soc_id >= 0)
++		return TEGRA_SMCCC_CHIP_ID(soc_id);
++#endif
+ 	return (tegra_read_chipid() >> 8) & 0xff;
+ }
+ 
+ u8 tegra_get_major_rev(void)
+ {
++#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
++	s32 soc_id = arm_smccc_get_soc_id_version();
++
++	if (soc_id >= 0)
++		return TEGRA_SMCCC_MAJOR_REV(soc_id);
++#endif
+ 	return (tegra_read_chipid() >> 4) & 0xf;
+ }
+ 
+ u8 tegra_get_minor_rev(void)
+ {
++#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
++	s32 revision = arm_smccc_get_soc_id_revision();
++
++	if (revision >= 0)
++		return TEGRA_SMCCC_MINOR_REV(revision);
++#endif
+ 	return (tegra_read_chipid() >> 16) & 0xf;
++
+ }
+ 
+ u8 tegra_get_platform(void)
+ {
++#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
++	s32 revision = arm_smccc_get_soc_id_revision();
++
++	if (revision >= 0)
++		return TEGRA_SMCCC_PLATFORM(revision);
++#endif
+ 	return (tegra_read_chipid() >> 20) & 0xf;
+ }
+ 
+--- linux-nvidia-6.17-6.17.0.orig/drivers/soc/tegra/pmc.c
++++ linux-nvidia-6.17-6.17.0/drivers/soc/tegra/pmc.c
+@@ -11,6 +11,7 @@
+ 
+ #define pr_fmt(fmt) "tegra-pmc: " fmt
+ 
++#include <linux/acpi.h>
+ #include <linux/arm-smccc.h>
+ #include <linux/clk.h>
+ #include <linux/clk-provider.h>
+@@ -2860,12 +2861,30 @@
+ 	pmc->suspend_mode = TEGRA_SUSPEND_NOT_READY;
+ }
+ 
++static int tegra_pmc_acpi_probe(struct platform_device *pdev)
++{
++	pmc->soc = device_get_match_data(&pdev->dev);
++	pmc->dev = &pdev->dev;
++
++	pmc->base = devm_platform_ioremap_resource(pdev, 0);
++	if (IS_ERR(pmc->base))
++		return PTR_ERR(pmc->base);
++
++	tegra_pmc_reset_sysfs_init(pmc);
++	platform_set_drvdata(pdev, pmc);
++
++	return 0;
++}
++
+ static int tegra_pmc_probe(struct platform_device *pdev)
+ {
+ 	void __iomem *base;
+ 	struct resource *res;
+ 	int err;
+ 
++	if (is_acpi_node(dev_fwnode(&pdev->dev)))
++		return tegra_pmc_acpi_probe(pdev);
++
+ 	/*
+ 	 * Early initialisation should have configured an initial
+ 	 * register mapping and setup the soc data pointer. If these
+@@ -4372,6 +4391,108 @@
+ 	.max_wake_vectors = 4,
+ };
+ 
++static const char * const tegra410_reset_sources[] = {
++	"SYS_RESET_N",		/* 0x0 */
++	"CSDC_RTC_XTAL",
++	"VREFRO_POWER_BAD",
++	"FMON_32K",
++	"FMON_OSC",
++	"POD_RTC",
++	"POD_IO",
++	"POD_PLUS_IO_SPLL",
++	"POD_PLUS_IO_VMON",	/* 0x8 */
++	"POD_PLUS_SOC",
++	"VMON_PLUS_UV",
++	"VMON_PLUS_OV",
++	"FUSECRC_FAULT",
++	"OSC_FAULT",
++	"BPMP_BOOT_FAULT",
++	"SCPM_BPMP_CORE_CLK",
++	"SCPM_PSC_SE_CLK",	/* 0x10 */
++	"VMON_SOC_MIN",
++	"VMON_SOC_MAX",
++	"NVJTAG_SEL_MONITOR",
++	"L0_RST_REQ_N",
++	"NV_THERM_FAULT",
++	"PSC_SW",
++	"POD_C2C_LPI_0",
++	"POD_C2C_LPI_1",	/* 0x18 */
++	"BPMP_FMON",
++	"FMON_SPLL_OUT",
++	"L1_RST_REQ_N",
++	"OCP_RECOVERY",
++	"AO_WDT_POR",
++	"BPMP_WDT_POR",
++	"RAS_WDT_POR",
++	"TOP_0_WDT_POR",	/* 0x20 */
++	"TOP_1_WDT_POR",
++	"TOP_2_WDT_POR",
++	"PSC_WDT_POR",
++	"OOBHUB_WDT_POR",
++	"MSS_SEQ_WDT_POR",
++	"SW_MAIN",
++	"L0L1_RST_OUT_N",
++	"HSM",			/* 0x28 */
++	"CSITE_SW",
++	"AO_WDT_DBG",
++	"BPMP_WDT_DBG",
++	"RAS_WDT_DBG",
++	"TOP_0_WDT_DBG",
++	"TOP_1_WDT_DBG",
++	"TOP_2_WDT_DBG",
++	"PSC_WDT_DBG",		/* 0x30 */
++	"TSC_0_WDT_DBG",
++	"TSC_1_WDT_DBG",
++	"OOBHUB_WDT_DBG",
++	"MSS_SEQ_WDT_DBG",
++	"L2_RST_REQ_N",
++	"L2_RST_OUT_N",
++	"SC7"
++};
++
++static const struct tegra_pmc_regs tegra410_pmc_regs = {
++	.rst_status = 0x8,
++	.rst_source_shift = 0x2,
++	.rst_source_mask = 0xfc,
++	.rst_level_shift = 0x0,
++	.rst_level_mask = 0x3,
++};
++
++static const struct tegra_pmc_soc tegra410_pmc_soc = {
++	.supports_core_domain = false,
++	.num_powergates = 0,
++	.powergates = NULL,
++	.num_cpu_powergates = 0,
++	.cpu_powergates = NULL,
++	.has_tsense_reset = false,
++	.has_gpu_clamps = false,
++	.needs_mbist_war = false,
++	.has_impl_33v_pwr = false,
++	.maybe_tz_only = false,
++	.num_io_pads = 0,
++	.io_pads = NULL,
++	.num_pin_descs = 0,
++	.pin_descs = NULL,
++	.regs = &tegra410_pmc_regs,
++	.init = NULL,
++	.setup_irq_polarity = NULL,
++	.set_wake_filters = NULL,
++	.irq_set_wake = NULL,
++	.irq_set_type = NULL,
++	.reset_sources = tegra410_reset_sources,
++	.num_reset_sources = ARRAY_SIZE(tegra410_reset_sources),
++	.reset_levels = tegra186_reset_levels,
++	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
++	.num_wake_events = 0,
++	.wake_events = NULL,
++	.max_wake_events = 0,
++	.max_wake_vectors = 0,
++	.pmc_clks_data = NULL,
++	.num_pmc_clks = 0,
++	.has_blink_output = false,
++	.has_single_mmio_aperture = false,
++};
++
+ static const struct of_device_id tegra_pmc_match[] = {
+ 	{ .compatible = "nvidia,tegra264-pmc", .data = &tegra264_pmc_soc },
+ 	{ .compatible = "nvidia,tegra234-pmc", .data = &tegra234_pmc_soc },
+@@ -4386,6 +4507,12 @@
+ 	{ }
+ };
+ 
++static const struct acpi_device_id tegra_pmc_acpi_match[] = {
++	{ .id = "NVDA2016", .driver_data = (kernel_ulong_t)&tegra410_pmc_soc },
++	{ }
++};
++MODULE_DEVICE_TABLE(acpi, tegra_pmc_acpi_match);
++
+ static void tegra_pmc_sync_state(struct device *dev)
+ {
+ 	struct device_node *np, *child;
+@@ -4436,6 +4563,7 @@
+ 		.name = "tegra-pmc",
+ 		.suppress_bind_attrs = true,
+ 		.of_match_table = tegra_pmc_match,
++		.acpi_match_table = tegra_pmc_acpi_match,
+ #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)
+ 		.pm = &tegra_pmc_pm_ops,
+ #endif

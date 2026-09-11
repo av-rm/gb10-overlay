@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    Linux kernel sources with NVIDIA DGX Spark (GB10 Grace-Blackwell) enablement
+    patches ported from Ubuntu linux-nvidia-6.17. The arm-smmu-v3 iGPU
+    domain-type quirk is required for the integrated Blackwell GPU: without it
+    GSP firmware initialisation fails and the GPU cannot be used.
+  </longdescription>
+</pkgmetadata>
