@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    Ly is a lightweight TUI display manager. It runs on a plain VT, so it
+    needs no X server of its own, and it launches both X11 and Wayland
+    sessions from /usr/share/xsessions and /usr/share/wayland-sessions.
+    This build is keyworded for arm64 and is built with dev-lang/zig-bin
+    rather than a source Zig, which would require an LLVM bootstrap.
+  </longdescription>
+  <use>
+    <flag name="X">
+      Support launching X11 sessions, which links Ly against libxcb and
+      pulls in the X server and the xauth/xrdb/xmessage helpers Ly calls
+      when starting one. Wayland sessions work either way.
+    </flag>
+  </use>
+  <upstream>
+    <remote-id type="codeberg">fairyglade/ly</remote-id>
+    <remote-id type="github">fairyglade/ly</remote-id>
+  </upstream>
+</pkgmetadata>

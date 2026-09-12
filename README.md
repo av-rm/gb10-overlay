@@ -7,6 +7,7 @@ A Gentoo overlay for the NVIDIA DGX Spark (GB10 Grace-Blackwell) on arm64.
 | `sys-kernel/gb10-sources` | Kernel sources with the GB10 enablement patches ported from Ubuntu's `linux-nvidia-6.17`. The arm-smmu-v3 iGPU quirk is required or GSP init fails and the GPU is unusable. |
 | `app-emulation/fex` | FEX-Emu, the x86/x86-64 usermode emulator. This is what runs the Steam client and x86 Linux binaries, and its thunk libraries hand OpenGL/Vulkan straight to the native arm64 NVIDIA driver. |
 | `app-emulation/fex-rootfs` | The prebuilt x86 Gentoo system images FEX runs guests against, and that the guest thunks are compiled against. |
+| `x11-misc/ly` | The Ly TUI display manager, at 1.5.0_rc1. ::guru only keywords it `~amd64` and is a release behind; this one is built for arm64 against `dev-lang/zig-bin`. |
 
 ## Enabling the overlay
 
@@ -28,6 +29,18 @@ cat >> /etc/portage/package.accept_keywords/gb10 <<'CONF'
 app-emulation/fex ~arm64
 app-emulation/fex-rootfs ~arm64
 sys-kernel/gb10-sources ~arm64
+x11-misc/ly ~arm64
+CONF
+```
+
+`x11-misc/ly` additionally needs `dev-lang/zig-bin:0.16` and, from ::guru,
+`app-misc/brightnessctl` — Ly's stock config binds the brightness keys to it:
+
+```sh
+cat >> /etc/portage/package.accept_keywords/gb10 <<'CONF'
+dev-lang/zig-bin ~arm64
+app-eselect/eselect-zig ~arm64
+app-misc/brightnessctl ~arm64
 CONF
 ```
 
@@ -97,6 +110,28 @@ sysctl --system
 # /etc/security/limits.conf:  <user>  hard  nofile  524288
 ```
 
+## Installing Ly
+
+```sh
+emerge -av x11-misc/ly
+rc-update add ly default
+```
+
+Ly is built with `dev-lang/zig-bin` rather than `dev-lang/zig`: the ebuild sets
+`ZIG_OPTIONAL` so that `zig.eclass` does not generate its usual
+`|| ( dev-lang/zig dev-lang/zig-bin )`, which portage is free to satisfy by
+bootstrapping the compiler from source against LLVM. The prebuilt aarch64
+toolchain produces the same binary in a fraction of the time.
+
+Ly drives tty2 by default, which Gentoo's stock `/etc/inittab` also hands to an
+agetty. Comment out the `c2` line there, or point `tty` in
+`/etc/ly/config.ini` at a VT nothing else claims.
+
+The `X` USE flag is off by default, which is enough for Wayland sessions —
+Plasma's included. Turn it on to launch anything out of
+`/usr/share/xsessions`; it links Ly against libxcb and pulls in the X server
+plus the `xauth`/`xrdb`/`xmessage` helpers Ly shells out to.
+
 ## GB10 notes
 
 * The kernel must use 4K pages (`CONFIG_ARM64_4K_PAGES`). FEX does not work
@@ -115,5 +150,8 @@ sysctl --system
   `app-emulation/fex/files`.
 * [WhatAmISupposedToPutHere/fex-rootfs](https://github.com/WhatAmISupposedToPutHere/fex-rootfs)
   — the x86 rootfs images.
+* [fairyglade/ly](https://codeberg.org/fairyglade/ly) — upstream, WTFPL-2.
+* [::guru](https://gitweb.gentoo.org/repo/proj/guru.git/) — the `x11-misc/ly`
+  ebuild this one is derived from, and `app-misc/brightnessctl`.
 
 Ebuilds here are distributed under the GPL-2, per the header on each file.
