@@ -61,11 +61,20 @@ src_prepare() {
 
 	# Config for this machine; build it with `make gb10_defconfig`.
 	#
+	# Shared verbatim with 6.17.0 -- it round-trips byte-identically through
+	# savedefconfig against this tree, so a second copy under files/6.17.9/
+	# bought nothing and only drifted: the copy that used to live there was
+	# cut before the ATH12K_AHB fix (commit 186e440), which put the
+	# qcom_scm <-> qcom_tzmem depmod cycle back and broke modules_install,
+	# and it had also lost SQUASHFS_ZSTD (needed for the FEX rootfs images)
+	# while picking up a stray ARCH_NXP=y. Only fork it again if 6.17.9
+	# genuinely needs a different symbol.
+	#
 	# ARCH_THUNDER is deliberately left on despite being a Cavium platform:
 	# patch 02 hangs ARCH_FORCE_MAX_ORDER=13 off it for 4K pages, and that
 	# symbol has no prompt, so it cannot be set directly. Turning
 	# ARCH_THUNDER off silently drops the kernel to MAX_ORDER=10.
-	cp "${FILESDIR}"/6.17.9/gb10_defconfig arch/arm64/configs/ || die
+	cp "${FILESDIR}"/gb10_defconfig arch/arm64/configs/ || die
 }
 
 pkg_postinst() {
