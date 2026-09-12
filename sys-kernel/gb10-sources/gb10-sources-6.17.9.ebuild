@@ -24,6 +24,14 @@ IUSE=""
 # whole file "previously applied" and skip *every* hunk in it -- which silently
 # drops the ARM64_WORKAROUND_NC_TO_NGNRE symbol and the ARCH_THUNDER clause on
 # ARCH_FORCE_MAX_ORDER. The rest are shared with 6.17.0 unchanged.
+#
+# Drop hunks, never whole files: patch(1)'s "previously applied" check is what
+# forces a regeneration, but only the individual hunks stable already carries
+# may go. Dropping the file section that contains them takes the still-needed
+# hunks with it -- that is how 12 lost the XHCI_NVIDIA_MT8901_HOST define (a
+# build failure in drivers/usb/host) and 02 lost pgprot_dmacoherent()'s
+# MT_NORMAL_NC_DMA switch (silent: it compiles, and the NC-to-nGnRE workaround
+# then never reaches dma-coherent mappings).
 UNIPATCH_LIST="
 	${FILESDIR}/01-iommu-spark-igpu.patch
 	${FILESDIR}/6.17.9/02-arm64-nc-to-ngnre.patch
