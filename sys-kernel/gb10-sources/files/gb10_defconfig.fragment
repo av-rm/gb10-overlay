@@ -1,0 +1,89 @@
+# Strip/override fragment: official arm64-nvidia config -> this GB10 box.
+#
+#   cd /usr/src/linux-<ver>
+#   ./scripts/kconfig/merge_config.sh -m \
+#       ~/kernel-configs/config-ubuntu-nvidia-6.17-arm64 \
+#       ~/kernel-configs/gb10-strip.fragment
+#   make olddefconfig
+#
+# Everything NOT listed here is inherited from NVIDIA's shipping config,
+# which is the point: PREEMPT_NONE, CMA_SIZE_MBYTES=128,
+# ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT=n and THP=madvise all come from there.
+
+# --- local overrides ---------------------------------------------------
+
+# GB10 has 20 cores; Ubuntu ships 512 for Grace server parts.
+CONFIG_NR_CPUS=20
+
+# Root is LUKS -> LVM -> ext4. Ubuntu builds dm-crypt as a module and
+# leans on its initramfs; keep it built in, as this box already does.
+CONFIG_DM_CRYPT=y
+
+# /boot is vfat mounted with iocharset=iso8859-1 (see /etc/fstab).
+# Ubuntu has this as m; built in so the mount never depends on modprobe.
+CONFIG_NLS_ISO8859_1=y
+
+# --- arm64 platforms this machine does not have ------------------------
+#
+# KEPT (do not add these to the list below):
+#   ARCH_MEDIATEK - GB10 is an NVIDIA/MediaTek part. The MT8901 companion
+#                   supplies pinctrl, EINT_MTK (which MTK_PCIE_HOTPLUG
+#                   depends on), the MT7925 wifi and the xHCI hub fix.
+#   ARCH_TEGRA    - the NVIDIA side of the SoC.
+#   ARCH_THUNDER  - ARCH_FORCE_MAX_ORDER defaults to 13 only via
+#                   (ARCH_THUNDER && ARM64_4K_PAGES). That symbol has no
+#                   prompt, so dropping ARCH_THUNDER silently falls back
+#                   to MAX_ORDER=10. ARCH_THUNDER2 is NOT in that
+#                   condition and is safe to drop.
+# CONFIG_ARCH_ACTIONS is not set
+# CONFIG_ARCH_AIROHA is not set
+# CONFIG_ARCH_APPLE is not set
+# CONFIG_ARCH_AXIADO is not set
+# CONFIG_ARCH_BERLIN is not set
+# CONFIG_ARCH_BITMAIN is not set
+# CONFIG_ARCH_BLAIZE is not set
+# CONFIG_ARCH_CIX is not set
+# CONFIG_ARCH_HISI is not set
+# CONFIG_ARCH_INTEL_SOCFPGA is not set
+# CONFIG_ARCH_K3 is not set
+# CONFIG_ARCH_KEEMBAY is not set
+# CONFIG_ARCH_LG1K is not set
+# CONFIG_ARCH_MA35 is not set
+# CONFIG_ARCH_MESON is not set
+# CONFIG_ARCH_MMP is not set
+# CONFIG_ARCH_MVEBU is not set
+# CONFIG_ARCH_NPCM is not set
+# CONFIG_ARCH_NXP is not set
+# CONFIG_ARCH_PENSANDO is not set
+# CONFIG_ARCH_QCOM is not set
+# CONFIG_ARCH_REALTEK is not set
+# CONFIG_ARCH_RENESAS is not set
+# CONFIG_ARCH_ROCKCHIP is not set
+# CONFIG_ARCH_SEATTLE is not set
+# CONFIG_ARCH_SOPHGO is not set
+# CONFIG_ARCH_SPARX5 is not set
+# CONFIG_ARCH_SPRD is not set
+# CONFIG_ARCH_STM32 is not set
+# CONFIG_ARCH_SUNXI is not set
+# CONFIG_ARCH_SYNQUACER is not set
+# CONFIG_ARCH_THUNDER2 is not set
+# CONFIG_ARCH_VEXPRESS is not set
+# CONFIG_ARCH_VISCONTI is not set
+# CONFIG_ARCH_XGENE is not set
+# CONFIG_ARCH_ZYNQMP is not set
+
+# --- must stay off: depmod dependency cycle ----------------------------
+# ATH12K_AHB is bool and depends only on (ATH12K && REMOTEPROC) - nothing
+# keeps it away once ATH12K is on. It selects QCOM_SCM, which selects
+# QCOM_TZMEM; as modules those two form a cycle and modules_install dies:
+#   depmod: ERROR: Cycle detected: qcom_scm -> qcom_tzmem -> qcom_scm
+# GB10's wifi is MT7925; ATH12K itself stays on for the PCIe case.
+# CONFIG_ATH12K_AHB is not set
+
+# --- build cost ---------------------------------------------------------
+# Ubuntu builds full DWARF5 and splits it into -dbgsym packages; we have no
+# such split, so full debuginfo across ~6800 modules means a multi-GB
+# vmlinux and /lib/modules. REDUCED still keeps function names, which is
+# all a blocked-task backtrace needs. This is the one judgement call in
+# this fragment - drop the line if you want full type info.
+CONFIG_DEBUG_INFO_REDUCED=y
