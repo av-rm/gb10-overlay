@@ -5,9 +5,17 @@
     <email>19230766+av-rm@users.noreply.github.com</email>
   </maintainer>
   <longdescription lang="en">
-    Linux kernel sources with NVIDIA DGX Spark (GB10 Grace-Blackwell) enablement
-    patches ported from Ubuntu linux-nvidia-6.17. The arm-smmu-v3 iGPU
-    domain-type quirk is required for the integrated Blackwell GPU: without it
-    GSP firmware initialisation fails and the GPU cannot be used.
+    Linux kernel sources with NVIDIA DGX Spark (GB10 Grace-Blackwell) enablement.
+
+    7.0.0 is NVIDIA's linux-nvidia-7.0 source package taken whole: the upstream
+    orig tarball plus the Ubuntu .diff.gz that carries the packaging and the
+    full GB10 patch set. Upstream renumbered the release, so the tree reports
+    version 7.0.14 rather than a 6.x number. No patches from files/ are applied.
+
+    6.17.0 is the older approach -- vanilla 6.17 plus fifteen patches ported by
+    hand from NVIDIA's 6.17 diff -- and is masked as broken. The arm-smmu-v3
+    iGPU domain-type quirk those patches carry is required for the integrated
+    Blackwell GPU: without it GSP firmware initialisation fails and the GPU
+    cannot be used. That quirk is merged in the 7.0 tree.
   </longdescription>
 </pkgmetadata>
