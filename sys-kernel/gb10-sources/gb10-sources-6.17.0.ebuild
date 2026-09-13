@@ -62,9 +62,16 @@ pkg_postinst() {
 	elog "  Recommended: DRM=y and DRM_SIMPLEDRM=y for a console at boot,"
 	elog "  MT7925E=m for wifi, MTK_PCIE_HOTPLUG=m for ConnectX-7 hotplug,"
 	elog "  NVGRACE_EGM=m and NVIDIA_FFA_EC=y."
+	elog "  For a Bluetooth mouse or keyboard: UHID=m, HIDRAW=y, HID_GENERIC=m"
+	elog "  and BT_HIDP=m. A BLE device speaks HID over GATT, which bluetoothd"
+	elog "  delivers through /dev/uhid -- without UHID it pairs and connects"
+	elog "  but never produces input. BT_HIDP only covers BR/EDR."
 	elog "  nvidia-drivers must be rebuilt against this tree (emerge nvidia-drivers)."
 	elog "  A starting config for this machine is shipped as gb10_defconfig:"
 	elog "      cd /usr/src/linux && make gb10_defconfig && make menuconfig"
+	elog "  Run gb10_defconfig itself -- do not copy the previous kernel's"
+	elog "  .config and run olddefconfig. That keeps whatever the old file"
+	elog "  already said and silently skips symbols added since it was cut."
 }
 
 pkg_postrm() {

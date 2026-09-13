@@ -23,6 +23,32 @@ CONFIG_DM_CRYPT=y
 # Ubuntu has this as m; built in so the mount never depends on modprobe.
 CONFIG_NLS_ISO8859_1=y
 
+# --- pinned: Bluetooth HID input ---------------------------------------
+#
+# All four of these are already =m/=y in NVIDIA's config, so none is a
+# delta today. They are listed anyway because they are load-bearing for
+# the only pointing device this box has and they have been lost once:
+# the 6.17.0 and first 6.17.9 builds both shipped "# CONFIG_UHID is not
+# set", which pairs a Bluetooth mouse perfectly and then never moves the
+# cursor. Pinning them here means a rebase onto some other base config
+# cannot drop them silently.
+#
+# UHID is the one that matters. A Bluetooth LE mouse or keyboard speaks
+# HID over GATT (HoG, UUID 0x1812); bluetoothd's input plugin has no
+# in-kernel transport for that and creates the input device by writing to
+# /dev/uhid. Without UHID the device bonds, connects, and serves battery
+# level over GATT -- it just never produces input, and the adapter's UUID
+# list comes up missing Human Interface Device. HIDP is the BR/EDR
+# transport only and is not a substitute.
+#
+# =m is enough here: uhid carries MODULE_ALIAS("devname:uhid"), OpenRC
+# runs kmod-static-nodes at sysinit, so /dev/uhid exists as a static node
+# before bluetoothd starts and opening it demand-loads the module.
+CONFIG_UHID=m
+CONFIG_HIDRAW=y
+CONFIG_HID_GENERIC=m
+CONFIG_BT_HIDP=m
+
 # --- arm64 platforms this machine does not have ------------------------
 #
 # KEPT (do not add these to the list below):
