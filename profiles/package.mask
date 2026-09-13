@@ -1,0 +1,6 @@
+# av-rm <19230766+av-rm@users.noreply.github.com> (2026-09-13)
+# Broken. Superseded by 7.0.0, which is NVIDIA's own linux-nvidia-7.0 source
+# package rather than vanilla plus the hand-ported 6.17 patch set. Kept in the
+# tree rather than removed because files/*.patch is still the record of that
+# port, and the ebuild is what documents how each patch was applied.
+=sys-kernel/gb10-sources-6.17.0
