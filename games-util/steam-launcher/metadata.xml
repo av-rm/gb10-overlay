@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    Valve's Steam client launcher, packaged for arm64 hosts that run it under
+    app-emulation/fex. The launcher and its bootstrap are installed to the
+    host /usr as usual; FEX falls through to the host for paths absent from
+    its RootFS, so the x86 guest finds them without anything being copied in.
+
+    Alongside Valve's own steam.desktop this installs steam-fex, a wrapper
+    that sets the three things the client needs under emulation: the native
+    arm64 bwrap, since the runtime's x86 srt-bwrap deadlocks; software
+    rendering for CEF, whose GPU path cannot obtain a 32bpp X visual and
+    otherwise sends Steam into a window teardown loop; and the FEXServer
+    socket path, which must not be uid-derived or under /tmp.
+
+    On any arch other than arm64 you want games-util/steam-launcher from
+    ::steam-overlay instead, which needs none of this.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">ValveSoftware/steam-for-linux</remote-id>
+    <bugs-to>https://github.com/ValveSoftware/steam-for-linux/issues</bugs-to>
+  </upstream>
+</pkgmetadata>

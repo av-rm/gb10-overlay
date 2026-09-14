@@ -1,0 +1,35 @@
+#!/bin/bash
+# Launch the Steam client inside FEX-Emu on arm64.
+#
+# Steam itself is the ordinary x86 launcher installed by this package into the
+# host /usr. FEX resolves a guest path against its RootFS first and falls
+# through to the host when the file is absent, so the guest finds /usr/bin/steam
+# and /usr/lib/steam/bootstraplinux_ubuntu12_32.tar.xz without any of it being
+# copied into the RootFS.
+set -euo pipefail
+
+# The x86 srt-bwrap shipped with the Steam runtime deadlocks under FEX: its
+# forked child exits before setting up the user namespace, and the parent then
+# blocks forever waiting on the resulting zombie. steam.sh calls it from
+# check_requirements() and never gets past it. The native arm64 bwrap works,
+# and FEX execs host binaries transparently, so point the runtime at that.
+#
+# Do not "fix" a failure here by pointing this at something that fails fast:
+# check-requirements then exits 71, which steam.sh treats as fatal ("Steam now
+# requires user namespaces") and refuses to start at all.
+export PRESSURE_VESSEL_BWRAP="${PRESSURE_VESSEL_BWRAP:-/usr/bin/bwrap}"
+
+# CEF's GPU path does not work under FEX: the browser compositor cannot get a
+# 32bpp X visual ("Failed to find a compatible 32bpp X11 visual"), rendering
+# stalls, and Steam's 60 s watchdog then declares the browser unresponsive and
+# tears down *every* UI window before rebuilding them. That reads as Steam
+# relaunching itself once or twice a minute, forever, while the client process
+# itself is never actually restarting. Software rendering costs nothing
+# noticeable for the client UI and stops it dead. Games do not go through CEF
+# and are unaffected. Set STEAM_FEX_CEF_GPU=1 to opt back in.
+cef_args=()
+[ "${STEAM_FEX_CEF_GPU:-0}" = 1 ] || cef_args+=(-cef-disable-gpu)
+
+# RootFS, thunks and ServerSocketPath come from ~/.fex-emu/Config.json; see
+# this package's pkg_postinst for the settings that matter.
+exec FEXBash -c 'exec steam "$@"' steam "${cef_args[@]}" "$@"
