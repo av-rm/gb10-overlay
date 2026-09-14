@@ -25,6 +25,9 @@ KEYWORDS="-* ~arm64"
 # we are not redistributing someone else's build artifacts to the mirrors.
 RESTRICT="binchecks mirror strip"
 
+# fex-rootfs-setup extracts the images at runtime.
+RDEPEND="sys-fs/squashfs-tools"
+
 pkg_pretend() {
 	# Only needed if you let the kernel mount the images rather than
 	# extracting them or going through squashfuse.
@@ -42,23 +45,31 @@ src_install() {
 	insinto /usr/share/fex-emu/rootfs
 	newins "${DISTDIR}/${P}-base.sqfs" base.sqfs
 	newins "${DISTDIR}/${P}-chroot.sqfs" chroot.sqfs
+
+	# Extracting the images is only half the job; see the script for why the
+	# result has to be "broken" before anything will work reliably.
+	dobin "${FILESDIR}/fex-rootfs-setup"
 }
 
 pkg_postinst() {
 	elog "The x86 rootfs images are installed in /usr/share/fex-emu/rootfs."
 	elog
 	elog "FEX mounts .sqfs images by calling squashfuse, which is not"
-	elog "keyworded for arm64. Either keyword it, or extract the image once"
-	elog "and point FEX at the directory instead:"
+	elog "keyworded for arm64, so extract the images once instead:"
 	elog
-	elog "  mkdir -p ~/.fex-emu/RootFS"
-	elog "  unsquashfs -d ~/.fex-emu/RootFS/gentoo-x86_64 \\"
-	elog "      /usr/share/fex-emu/rootfs/base.sqfs"
-	elog "  unsquashfs -f -d ~/.fex-emu/RootFS/gentoo-x86_64 \\"
-	elog "      /usr/share/fex-emu/rootfs/chroot.sqfs"
+	elog "  fex-rootfs-setup        # run as your own user, not root"
 	elog
-	elog "then set RootFS to gentoo-x86_64 in FEXConfig, or in"
-	elog "~/.fex-emu/Config.json."
+	elog "That extracts base.sqfs + chroot.sqfs into ~/.fex-emu/RootFS and"
+	elog "then *breaks* the result, which is not optional: FEX resolves a"
+	elog "guest path against the RootFS first and only falls through to the"
+	elog "host if it is missing, so a directory present in both silently"
+	elog "shadows the host's. An unbroken rootfs leaves Steam writing its IPC"
+	elog "into the rootfs /tmp while the webhelper in pressure-vessel uses the"
+	elog "real one, which surfaces as startup error 0x3009."
+	elog
+	elog "Re-run it after every upgrade of this package: a fresh extract puts"
+	elog "all of those directories back. It is idempotent and will not"
+	elog "overwrite an existing ~/.fex-emu/Config.json."
 	elog
 	elog "app-emulation/fex[thunks] uses these images directly at build time;"
 	elog "you do not need to extract them for that."

@@ -230,9 +230,13 @@ pkg_postinst() {
 		ewarn "or run FEX inside app-emulation/muvm."
 	fi
 
-	elog "FEX needs an x86-64 rootfs before it can run anything. Either:"
+	elog "FEX needs an x86-64 rootfs before it can run anything:"
+	elog "  fex-rootfs-setup              # app-emulation/fex-rootfs"
 	elog "  FEXRootFSFetcher              # downloads one into ~/.fex-emu"
-	elog "  or point FEXConfig at /usr/share/fex-emu/rootfs/base.sqfs"
+	elog
+	elog "Prefer fex-rootfs-setup: it also removes the directories the image"
+	elog "shares with the host (/tmp, /home, /etc/passwd, ...), which FEX"
+	elog "would otherwise resolve from the rootfs and shadow the host's."
 	elog
 	elog "To run x86 binaries by executing them directly, enable binfmt_misc:"
 	elog "  modprobe binfmt_misc                  # add to /etc/conf.d/modules"
@@ -244,12 +248,29 @@ pkg_postinst() {
 		elog
 		elog "Host thunks were built. Enable the ones you need in FEXConfig"
 		elog "so guest x86 GL/Vulkan calls reach the native arm64 driver."
-		elog "On GB10 with nvidia-drivers: enable Vulkan, OpenGL, Wayland and"
-		elog "DRM. Leave the OpenAL thunk off, it is known to crash Steam."
+		elog "On GB10 with nvidia-drivers: enable Vulkan, OpenGL, Wayland,"
+		elog "DRM and cuda."
+		elog
+		elog "Leave the ALSA (asound) thunk off. libasound-guest.so does not"
+		elog "export ALSA's versioned symbols, so libcef fails against it and"
+		elog "Steam's webhelper dies with:"
+		elog "  undefined symbol: snd_mixer_elem_set_callback, version ALSA_0.9"
+		elog
+		elog "The GL thunk forwards into the host libGL, so it is only as good"
+		elog "as the host driver: with the nvidia modules unloaded it takes the"
+		elog "client down with a SIGSEGV or std::bad_alloc that looks like a"
+		elog "thunk bug. Check nvidia-smi first, and rerun emerge @module-rebuild"
+		elog "after any kernel rebuild."
 	fi
 
 	elog
 	elog "For Steam and Proton, raise these first:"
 	elog "  vm.max_map_count = 2147483642   (/etc/sysctl.d/)"
 	elog "  nofile hard limit >= 524288     (/etc/security/limits.conf)"
+	elog
+	elog "Also set ServerSocketPath in ~/.fex-emu/Config.json to a path under"
+	elog "\$HOME. FEX derives its default socket name from getuid(), which a"
+	elog "user namespace reports as 0, and a socket in /tmp is invisible from"
+	elog "inside pressure-vessel's private /tmp. Either one stops Steam's CEF"
+	elog "zygote from reaching FEXServer."
 }

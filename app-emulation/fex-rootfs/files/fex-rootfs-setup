@@ -1,0 +1,110 @@
+#!/bin/sh
+# Extract the packaged x86 rootfs into ~/.fex-emu/RootFS and break it.
+#
+# "Breaking" is not optional. FEX resolves a guest path against the RootFS
+# first and only falls through to the host if it is *missing*, so every
+# directory the image shares with the host silently shadows it. Upstream
+# documents the list:
+#   https://wiki.fex-emu.com/index.php/Development:Setting_up_RootFS
+#
+# Left unbroken, the damage is invisible until something goes looking for a
+# host path: Steam's client writes its IPC rendezvous into the rootfs /tmp
+# while the webhelper inside pressure-vessel uses the real one (startup error
+# 0x3009), and anything writing under $HOME lands in a rootfs stub instead of
+# the user's home.
+#
+# Re-run this after every fex-rootfs upgrade: a fresh extract restores every
+# directory removed here. It is idempotent.
+
+set -eu
+
+IMAGES="${FEX_ROOTFS_IMAGES:-/usr/share/fex-emu/rootfs}"
+NAME="${FEX_ROOTFS_NAME:-gentoo-x86_64}"
+FEXDIR="${FEX_HOME:-${HOME}/.fex-emu}"
+DEST="${FEXDIR}/RootFS/${NAME}"
+
+# Directories and files that must not exist inside the RootFS, so that the
+# guest sees the host's. /etc/group is not on upstream's list, but it is the
+# same class of problem: with passwd falling through and group not, the guest
+# resolves a uid it has no matching gid for, and pressure-vessel complains
+# about both.
+BREAK_DIRS="boot dev home media mnt opt proc root srv sys tmp"
+BREAK_FILES="etc/hosts etc/resolv.conf etc/timezone etc/localtime etc/passwd etc/group"
+
+die() { echo "fex-rootfs-setup: $*" >&2; exit 1; }
+
+[ "$(id -u)" -eq 0 ] && cat <<'EOF' >&2
+fex-rootfs-setup: warning: running as root sets up root's ~/.fex-emu, not
+your user's. Run it as the user that will actually run FEX.
+EOF
+
+command -v unsquashfs >/dev/null 2>&1 ||
+	die "unsquashfs not found; emerge sys-fs/squashfs-tools"
+
+for img in base chroot; do
+	[ -f "${IMAGES}/${img}.sqfs" ] ||
+		die "${IMAGES}/${img}.sqfs not found; is app-emulation/fex-rootfs installed?"
+done
+
+echo "Extracting ${NAME} into ${DEST} ..."
+mkdir -p "${FEXDIR}/RootFS"
+# base first, then chroot overlaid on top; -f so a re-run overwrites in place.
+unsquashfs -f -d "${DEST}" "${IMAGES}/base.sqfs"   >/dev/null || die "unsquashfs base.sqfs failed"
+unsquashfs -f -d "${DEST}" "${IMAGES}/chroot.sqfs" >/dev/null || die "unsquashfs chroot.sqfs failed"
+
+echo "Breaking the chroot so host paths are not shadowed ..."
+for d in ${BREAK_DIRS}; do
+	[ -e "${DEST}/${d}" ] || continue
+	rm -rf -- "${DEST:?}/${d}" || die "could not remove ${d}"
+	echo "  removed /${d}"
+done
+for f in ${BREAK_FILES}; do
+	[ -e "${DEST}/${f}" ] || continue
+	rm -f -- "${DEST:?}/${f}" || die "could not remove ${f}"
+	echo "  removed /${f}"
+done
+
+# A default config, only when there is none: never clobber a user's own.
+CONFIG="${FEXDIR}/Config.json"
+if [ ! -e "${CONFIG}" ]; then
+	cat > "${CONFIG}" <<EOF
+{
+  "Config": {
+    "RootFS": "${NAME}",
+    "ServerSocketPath": "${FEXDIR}/Server/fexsrv.sock"
+  },
+  "ThunksDB": {
+    "GL": "1",
+    "Vulkan": "1",
+    "drm": "1",
+    "WaylandClient": "1",
+    "cuda": "1"
+  }
+}
+EOF
+	mkdir -p "${FEXDIR}/Server"
+	echo "Wrote ${CONFIG}"
+else
+	# Two settings are known to break Steam; warn rather than rewrite.
+	if grep -q '"asound"' "${CONFIG}" 2>/dev/null; then
+		cat <<'EOF' >&2
+
+warning: "asound" is enabled in ThunksDB. libasound-guest.so does not export
+ALSA's versioned symbols, so libcef fails to resolve against it and Steam's
+webhelper dies with:
+    undefined symbol: snd_mixer_elem_set_callback, version ALSA_0.9
+Remove "asound" from ThunksDB; ALSA is then emulated, at no real cost.
+EOF
+	fi
+	if grep -q '"ServerSocketPath"[[:space:]]*:[[:space:]]*"/tmp/' "${CONFIG}" 2>/dev/null; then
+		cat <<'EOF' >&2
+
+warning: ServerSocketPath is under /tmp. pressure-vessel gives its container a
+private /tmp, so the socket is invisible inside it and Steam's CEF zygote dies
+with "Couldn't connect to FEXServer socket". Put it under $HOME instead.
+EOF
+	fi
+fi
+
+echo
+echo "Done. RootFS=${NAME} is ready in ${DEST}."
