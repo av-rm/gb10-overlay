@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>19230766+av-rm@users.noreply.github.com</email>
+  </maintainer>
+  <longdescription lang="en">
+    A VA-API implementation backed by NVIDIA's NVDEC, letting native arm64
+    applications hardware-decode video on the GB10. Identical to the ::gentoo
+    package apart from the ~arm64 keyword, which ::gentoo has never set even
+    though the source is arch-neutral and the aarch64 NVIDIA driver ships the
+    libnvcuvid.so it needs.
+
+    Note this does not help x86 guests running under app-emulation/fex: FEX
+    provides no libva or libnvcuvid thunk, so the Steam client's Chromium
+    webhelper cannot reach this driver and must keep hardware video decoding
+    turned off.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">elFarto/nvidia-vaapi-driver</remote-id>
+  </upstream>
+</pkgmetadata>
